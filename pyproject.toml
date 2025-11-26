@@ -1,0 +1,19 @@
+[project]
+name = "data-eng-utn"
+version = "0.1.0"
+description = "Works for the Data Engineering course at UTN"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "deltalake>=1.2.1",
+    "invoke>=2.2.1",
+    "pandas>=2.3.3",
+    "pendulum>=3.1.0",
+    "python-dotenv>=1.2.1",
+    "requests>=2.32.5",
+]
+
+[dependency-groups]
+dev = [
+    "jupyter>=1.1.1",
+]
