@@ -9,6 +9,8 @@ dependencies = [
     "invoke>=2.2.1",
     "pandas>=2.3.3",
     "pendulum>=3.1.0",
+    "pyarrow>=22.0.0",
+    "pygeohash>=3.2.1",
     "python-dotenv>=1.2.1",
     "requests>=2.32.5",
 ]

@@ -1,40 +1,61 @@
 from invoke.tasks import task
-from src.TP1.main import OpenMeteoAPIClient
-from typing import Literal
+from src.extractors import (
+    ForecastExtractor,
+    HistoricalExtractor,
+    AirQualityExtractor,
+    NearestStationsExtractor
+)
+from src.loaders import DeltaLakeLoader
 import pendulum
+from src.pipelines import run_extraction_load_bronze_pipeline
 
 @task
-def fetch_weather(
-    ctx,
-    endpoint: Literal["forecast", "historic", "air_quality","stations"],
-    latitude: float = 	-34.603722,
-    longitude: float = -58.381592):
-    """
-    Data from OpenMeteo API: fetch-weather --endpoint=<endpoint> [--latitude=<latitude>] [--longitude=<longitude>]
-    """
-    client = OpenMeteoAPIClient(latitude=latitude, longitude=longitude)
-    
-    if endpoint == "forecast":
-        weather_data = client.get_weather_forecast()
-        print("Metadata:\n", weather_data[0])
-        print("Data:\n", weather_data[1])
-    elif endpoint == "historic":
-        start_date = pendulum.now().subtract(days=7).to_date_string()
-        end_date = pendulum.now().to_date_string()
-        historical_data = client.get_weather_historical(start_date, end_date)
-        print("Metadata:\n", historical_data[0])
-        print("Data:\n", historical_data[1])
-    elif endpoint == "air_quality":
-        air_quality_data = client.get_air_quality_data()
-        print("Metadata:\n", air_quality_data[0])
-        print("Data:\n", air_quality_data[1])
-    elif endpoint == "stations":
-        stations_data = client.get_nearby_stations()
-        print("Metadata:\n", stations_data[0])
-        print("Data:\n", stations_data[1])
-    else:
-        raise ValueError(f"Unknown endpoint: {endpoint}")
+def fetch_forecast(ctx, latitude: float = -34.603722, longitude: float = -58.381592):
+    """Fetch weather forecast for given coordinates."""
+    extractor = ForecastExtractor(longitude=longitude, latitude=latitude)
+    forecast_data = extractor.extract()
+    print("Forecast Data Shape:", forecast_data.shape)
+    print("Forecast Data Info:")
+    print(forecast_data.info())
+
+
+@task
+def fetch_historic(ctx, latitude: float = -34.603722, longitude: float = -58.381592, days: int = 7):
+    """Fetch historic weather data for the past `days` days."""
+    start_date = pendulum.now().subtract(days=days).date()
+    end_date = pendulum.now().date()
+    extractor = HistoricalExtractor(
+        start_date=start_date,
+        end_date=end_date,
+        longitude=longitude,
+        latitude=latitude
+    )
+    historical_data = extractor.extract()
+    print("Historical Data Shape:", historical_data.shape)
+    print("Historical Data Info:")
+    print(historical_data.info())
+
+
+@task
+def fetch_air_quality(ctx, latitude: float = -34.603722, longitude: float = -58.381592):
+    """Fetch air quality data for given coordinates."""
+    extractor = AirQualityExtractor(longitude=longitude, latitude=latitude)
+    air_quality_data = extractor.extract()
+    print("Air Quality Data Shape:", air_quality_data.shape)
+    print("Air Quality Data Info:")
+    print(air_quality_data.info())
+
+
+@task
+def fetch_stations(ctx, latitude: float = -34.603722, longitude: float = -58.381592):
+    """Fetch nearby weather stations for given coordinates."""
+    extractor = NearestStationsExtractor(longitude=longitude, latitude=latitude)
+    stations_data = extractor.extract()
+    print("Stations Data Shape:", stations_data.shape)
+    print("Stations Data Info:")
+    print(stations_data.info())
         
 @task
 def run_extraction_pipeline(ctx):
-    pass
+    """Run the complete extraction and load pipeline for default params."""
+    run_extraction_load_bronze_pipeline()
