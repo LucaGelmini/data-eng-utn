@@ -8,6 +8,8 @@ class DeltaLakeLoader:
         self.table_root_path = f"s3://{cfg.BUCKET_NAME}/{table_root_path}" if storage_options else f"./out/{table_root_path}"
         self.storage_options = storage_options
         
+        print("Loader initialized for: ", self.table_root_path)
+        
     def merge_upsert(
         self, 
         location:str,
@@ -68,6 +70,34 @@ class DeltaLakeLoader:
             path,
             data,
             mode="append",
-            partition_by=partition_by
+            partition_by=partition_by,
+            storage_options=self.storage_options
         )
         print(f"Inserted {len(data)} registers into {path} with partition {filter_col} = {filter_value}.")
+        
+    def insert_overwrite(
+        self,
+        location: str,
+        data: pd.DataFrame,
+        partition_by: list[str],
+        filter_col: str):
+        
+        path = f"{self.table_root_path}/{location}"
+        if set(partition_by) ==  set(data.columns):
+            raise ValueError("partition_by columns are not present in data columns.")
+        if filter_col not in partition_by:
+            raise ValueError("filter_column must be a valid partition")
+
+        partition_value = data[filter_col].iloc[0]
+
+        predicate = f"{filter_col} = '{partition_value}'"
+
+        write_deltalake(
+            path,
+            data,
+            mode="overwrite",
+            partition_by=partition_by,
+            predicate=predicate,
+            storage_options=self.storage_options
+        )
+        print(f"Succesfuly overwritten {filter_col} = '{partition_value}' partition.")

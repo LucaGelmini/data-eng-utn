@@ -1,5 +1,7 @@
 from datetime import date, timedelta
+from typing import Callable
 
+import src.config as cfg
 from src.extractors import (
     ForecastExtractor,
     HistoricalExtractor,
@@ -11,7 +13,6 @@ from src.loaders import DeltaLakeLoader
 
 LOOKBACK_WINDOW_DAYS = 7
 END_DATE = date.today()
-PATH_ROOT = "bronze"
 COORDINATES = {
     "buenos_aires": {
         "longitude": -58.417309,
@@ -27,20 +28,29 @@ COORDINATES = {
     }
 }
 
+def get_city_coordinates(city_name: str) -> dict[str, float]:
+    # Here can be a better sanitization
+    city_name = city_name.lower().strip()
+    
+    return cfg.CITIES_COORDINATES_MAP[city_name]
+
 def run_extraction_load_bronze_pipeline(
-    path_root: str = PATH_ROOT,
     lookback_window_days: int = LOOKBACK_WINDOW_DAYS,
     end_date: date = END_DATE,
-    coordinates: dict = COORDINATES
+    cities: list[str] = ["buenos_aires", "rosario", "cordoba"],
+    city_to_coordinates_mapper: Callable[[str], dict[str, float]] = get_city_coordinates,
 ):
     """Runs the extraction and load pipeline for multiple cities."""
     
+    datalake_layer = 'bronze'
     start_date = end_date - timedelta(days=lookback_window_days)
+    loader = DeltaLakeLoader(table_root_path=f"{datalake_layer}", storage_options=cfg.storage_options)
     
-    for city, coords in coordinates.items():
+    for city in cities:
+        coords = city_to_coordinates_mapper(city)
+        
         longitude = coords["longitude"]
         latitude = coords["latitude"]
-        loader = DeltaLakeLoader(table_root_path=f"{path_root}")
         
         print(f"Processing data for {city}...")
     
@@ -48,23 +58,23 @@ def run_extraction_load_bronze_pipeline(
         forecast_extractor = ForecastExtractor(longitude, latitude)
         forecast_data = forecast_extractor.extract()
         forecast_data["city"] = city
-        loader.delete_insert("forecast", forecast_data, filter_col="date_retrieved", partition_by=["date_retrieved", "city"])
+        loader.insert_overwrite("forecast", forecast_data, filter_col="date_retrieved", partition_by=["date_retrieved", "city"])
         
 
         # Historical Weather Data Extraction and Loading
         historical_extractor = HistoricalExtractor(start_date, end_date, longitude, latitude)
         historical_data = historical_extractor.extract()
         historical_data["city"] = city
-        loader.delete_insert("historical", historical_data, filter_col="date_retrieved", partition_by=["date_retrieved", "city"])
+        loader.insert_overwrite("historical", historical_data, filter_col="date_retrieved", partition_by=["date_retrieved", "city"])
 
         # Air Quality Data Extraction and Loading
         air_quality_extractor = AirQualityExtractor(longitude, latitude)
         air_quality_data = air_quality_extractor.extract()
         air_quality_data["city"] = city
-        loader.delete_insert("air_quality", air_quality_data, filter_col="date_retrieved", partition_by=["date_retrieved", "city"])
+        loader.insert_overwrite("air_quality", air_quality_data, filter_col="date_retrieved", partition_by=["date_retrieved", "city"])
 
         # Nearest Stations Data Extraction and Loading
         nearest_stations_extractor = NearestStationsExtractor(longitude, latitude)
         nearest_stations_data = nearest_stations_extractor.extract()
         nearest_stations_data["city"] = city
-        loader.delete_insert("nearest_stations", nearest_stations_data, filter_col="date_retrieved", partition_by=["date_retrieved", "city"])
+        loader.insert_overwrite("nearest_stations", nearest_stations_data, filter_col="date_retrieved", partition_by=["date_retrieved", "city"])
