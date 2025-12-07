@@ -79,18 +79,18 @@ class DeltaLakeLoader:
         self,
         location: str,
         data: pd.DataFrame,
-        partition_by: list[str],
-        filter_col: str):
-        
+        partition_by: list[str]):
+
         path = f"{self.table_root_path}/{location}"
         if set(partition_by) ==  set(data.columns):
             raise ValueError("partition_by columns are not present in data columns.")
-        if filter_col not in partition_by:
-            raise ValueError("filter_column must be a valid partition")
 
-        partition_value = data[filter_col].iloc[0]
+        predicate_parts = []
+        for col in partition_by:
+            col_value = data[col].iloc[0]
+            predicate_parts.append(f"{col} = '{col_value}'")
 
-        predicate = f"{filter_col} = '{partition_value}'"
+        predicate = " AND ".join(predicate_parts)
 
         write_deltalake(
             path,
@@ -100,4 +100,4 @@ class DeltaLakeLoader:
             predicate=predicate,
             storage_options=self.storage_options
         )
-        print(f"Succesfuly overwritten {filter_col} = '{partition_value}' partition.")
+        print(f"Succesfuly overwritten partition: {predicate}")

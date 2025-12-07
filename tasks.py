@@ -7,7 +7,7 @@ from src.extractors import (
 )
 from src.loaders import DeltaLakeLoader
 import pendulum
-from src.pipelines import run_extraction_load_bronze_pipeline
+from src.pipelines import run_extraction_load_bronze_pipeline, run_transformation_silver_pipeline, run_transformation_gold_pipeline
 
 @task
 def fetch_forecast(ctx, latitude: float = -34.603722, longitude: float = -58.381592):
@@ -59,3 +59,13 @@ def fetch_stations(ctx, latitude: float = -34.603722, longitude: float = -58.381
 def run_extraction_pipeline(ctx):
     """Run the complete extraction and load pipeline for default params."""
     run_extraction_load_bronze_pipeline()
+    
+@task
+def run_transformation_pipeline(ctx):
+    """Run the complete transformation and load pipeline for default params."""
+    run_transformation_silver_pipeline()
+
+@task
+def run_gold_pipeline(ctx):
+    """Run the gold layer transformation pipeline."""
+    run_transformation_gold_pipeline()

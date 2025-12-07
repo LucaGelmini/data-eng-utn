@@ -4,12 +4,13 @@ A data engineering project for the Data Engineering course at **Universidad Tecn
 
 ## Overview
 
-This project implements a medallion architecture data pipeline that extracts meteorological data from free APIs and processes it through multiple layers:
+This project implements a complete **Medallion Architecture** data pipeline that extracts meteorological data from Open-Meteo APIs and processes it through three layers:
 
-- **Bronze Layer**: Raw data extraction from weather APIs
-- **Silver Layer**: Data transformations and cleaning
+- **Bronze Layer**: Raw data extraction from weather APIs (historical, forecast, air quality, stations)
+- **Silver Layer**: Enriched transformations with aggregations and AQI calculation
+- **Gold Layer**: Business intelligence with health alerts, allergy risk, and outdoor activity scores
 
-Data can be stored locally or on AWS S3.
+Supports **3 cities** (Buenos Aires, Rosario, Córdoba) with data stored on AWS S3 using Delta Lake.
 
 ## Data Sources
 
@@ -66,36 +67,71 @@ Tasks are managed with `invoke`. Run any task using:
 uv run invoke <task_name> [options]
 ```
 
-### Available Tasks
+### Pipeline Tasks
 
-- **`fetch_forecast`** - Fetch weather forecast data
-  ```bash
-  uv run invoke fetch-forecast --latitude=-34.603722 --longitude=-58.381592
-  ```
+**Complete Pipeline Run:**
+```bash
+# 1. Extract raw data (Bronze layer)
+uv run inv run-extraction-pipeline
 
-- **`fetch_historic`** - Fetch historical weather data (default: last 7 days)
-  ```bash
-  uv run invoke fetch-historic --latitude=-34.603722 --longitude=-58.381592 --days=7
-  ```
+# 2. Transform to enriched data (Silver layer)
+uv run inv run-transformation-pipeline
 
-- **`fetch_air_quality`** - Fetch air quality data
-  ```bash
-  uv run invoke fetch-air-quality --latitude=-34.603722 --longitude=-58.381592
-  ```
+# 3. Create business intelligence (Gold layer)
+uv run inv run-gold-pipeline
+```
 
-- **`fetch_stations`** - Fetch nearby weather stations
-  ```bash
-  uv run invoke fetch-stations --latitude=-34.603722 --longitude=-58.381592
-  ```
-
-- **`run_extraction_pipeline`** - Run the complete extraction and load pipeline
-  ```bash
-  uv run invoke run-extraction-pipeline --latitude=-34.603722 --longitude=-58.381592
-  ```
+**Individual Extraction Tasks:**
+```bash
+# Fetch specific data for a single location
+uv run inv fetch-forecast --latitude=-34.603722 --longitude=-58.381592
+uv run inv fetch-historic --latitude=-34.603722 --longitude=-58.381592 --days=7
+uv run inv fetch-air-quality --latitude=-34.603722 --longitude=-58.381592
+uv run inv fetch-stations --latitude=-34.603722 --longitude=-58.381592
+```
 
 ## Architecture
 
-- **Bronze Layer**: Raw data ingestion from APIs into Delta Lake
-- **Silver Layer**: Data transformations and quality checks (coming soon)
+```
+BRONZE (Raw)          SILVER (Enriched)              GOLD (Business)
+─────────────────────────────────────────────────────────────────────
 
-Data is stored in Delta Lake tables for ACID compliance and time-travel capabilities.
+📦 historical      →  weather_summary
+                   →  hourly_historical_analysis
+
+📦 forecast        →  weather_forecast             ┐
+📦 air_quality     →  air_quality_daily            ├→ forecast_combined
+                                                    ┘  • health_alert
+                                                       • allergy_risk
+                                                       • outdoor_score
+```
+
+**5 Transformers** (4 Silver + 1 Gold):
+- `WeatherSummaryTransformer`: Historical weather aggregations
+- `WeatherForecastTransformer`: Forecast weather aggregations
+- `AirQualityDailyTransformer`: Air quality aggregations + AQI calculation
+- `HourlyHistoricalAnalysisTransformer`: Hourly temperature patterns
+- `ForecastCombinedTransformer`: Business intelligence with health alerts
+
+**Features:**
+- Delta Lake for ACID transactions and time-travel
+- Idempotent `merge_upsert` operations
+- Partitioned by city for query performance
+- Multi-city support (3 cities)
+
+## Demo
+
+Run the Jupyter notebook to see the complete pipeline in action:
+
+```bash
+jupyter notebook demo_pipeline.ipynb
+```
+
+The notebook demonstrates:
+- Complete data flow (Bronze → Silver → Gold)
+- Idempotency verification
+- Business intelligence queries (health alerts, outdoor scores, allergy risk)
+
+## Documentation
+
+See [COMPLETE_ARCHITECTURE.md](COMPLETE_ARCHITECTURE.md) for detailed architecture documentation.
