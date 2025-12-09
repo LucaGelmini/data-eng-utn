@@ -155,6 +155,12 @@ class AirQualityDailyTransformer(BaseTransformer):
             'latitude', 'longitude', 'date_retrieved'
         ]
 
+        # IMPORTANT: This is a SIMPLIFIED AQI calculation for demonstration purposes only.
+        # AQI (Air Quality Index) is the index used by the U.S. Environmental Protection
+        # Agency (EPA) for air quality monitoring.
+        # See the non simplified index methodology here:
+        # https://document.airnow.gov/technical-assistance-document-for-the-reporting-of-daily-air-quailty.pdf
+        
         agg_df['aqi_simplified'] = agg_df['pm2_5_avg'].apply(
             lambda x: min(100, (x / 25.0) * 100) if pd.notnull(x) else None
         )
@@ -240,7 +246,6 @@ class ForecastCombinedTransformer(BaseTransformer):
     - Outdoor activity score (0-100)
     """
 
-    datalake_layer = 'gold'
     source_layer = 'silver'
 
     @property
